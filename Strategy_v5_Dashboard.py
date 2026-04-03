@@ -7,10 +7,10 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
 # --- 1. 网页配置 ---
-st.set_page_config(page_title="V5 Optimizer Pro", layout="wide")
-st.title("🏴‍☠️ 贪婪猎人 V5：全域寻优指挥部")
+st.set_page_config(page_title="V5 Optimizer Pro + Stress Test", layout="wide")
+st.title("🏴‍☠️ 贪婪猎人 V5：压力测试 & 全域寻优实验室")
 
-# --- 2. 核心回测逻辑函数 (封装版：一次性返回所有数据) ---
+# --- 2. 核心回测逻辑函数 ---
 def run_backtest(df, rsi_thresh, gap_pct, init_bal=10000.0):
     cash = init_bal
     total_pos = 0.0
@@ -33,7 +33,8 @@ def run_backtest(df, rsi_thresh, gap_pct, init_bal=10000.0):
             total_pos, avg_cost, layer = 0, 0, 0
         elif layer == 0 and price < lower and rsi < rsi_thresh:
             invest = init_bal * invest_plan[0]
-            total_pos, avg_cost, layer, cash = invest/price, price, 1, cash - invest
+            total_pos = invest / price
+            avg_cost, layer, cash = price, 1, cash - invest
             trade_log.append({"date": date, "type": "BUY", "price": price, "layer": 1})
         elif 0 < layer < len(invest_plan) and price < avg_cost * (1 - gap_pct):
             invest = init_bal * invest_plan[layer]
@@ -59,17 +60,31 @@ rsi_input = st.sidebar.slider("RSI 阈值", 10, 45, 25)
 gap_input = st.sidebar.slider("补仓间距 %", 1.0, 15.0, 5.0) / 100
 initial_bal = st.sidebar.number_input("初始资金", value=10000)
 
+st.sidebar.markdown("---")
+stress_test = st.sidebar.checkbox("🚨 开启 -40% 极端压力测试")
+
 # --- 4. 加载数据 ---
 @st.cache_data
 def load_data(s):
     df_raw = yf.download(s, period="1y", interval="1d", progress=False)
     if isinstance(df_raw.columns, pd.MultiIndex): df_raw.columns = df_raw.columns.get_level_values(0)
-    df_raw["RSI"] = ta.rsi(df_raw["Close"], length=14)
-    bb = ta.bbands(df_raw["Close"], length=20, std=2)
-    df_raw["BB_Lower"], df_raw["BB_Mid"] = bb.iloc[:, 0], bb.iloc[:, 1]
-    return df_raw.dropna()
+    return df_raw
 
-df = load_data(symbol)
+# 原始数据
+df_raw = load_data(symbol)
+df = df_raw.copy()
+
+# 【核心逻辑】：在计算指标前注入黑天鹅
+if stress_test:
+    st.warning("⚠️ 正在模拟末端暴跌 40% 的黑天鹅行情...")
+    # 模拟最后 20 天突然暴跌
+    df.iloc[-20:, df.columns.get_loc('Close')] = df.iloc[-20:]['Close'] * 0.6
+
+# 重新计算指标
+df["RSI"] = ta.rsi(df["Close"], length=14)
+bb = ta.bbands(df["Close"], length=20, std=1.5)
+df["BB_Lower"], df["BB_Mid"] = bb.iloc[:, 0], bb.iloc[:, 1]
+df = df.dropna()
 
 # --- 5. 执行主回测并展示 ---
 tr, md, sh, equity_series, t_log = run_backtest(df, rsi_input, gap_input, initial_bal)
@@ -82,10 +97,9 @@ c4.metric("最大回撤", f"{md:.2f}%")
 
 # --- 6. 绘图 ---
 fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.05, row_heights=[0.7, 0.3])
-fig.add_trace(go.Scatter(x=df.index, y=df["Close"], name="价格", line=dict(color='black', width=1)), row=1, col=1)
+fig.add_trace(go.Scatter(x=df.index, y=df["Close"], name="价格 (包含压测)", line=dict(color='black', width=1)), row=1, col=1)
 fig.add_trace(go.Scatter(x=df.index, y=df["BB_Mid"], name="中轨止盈", line=dict(dash='dash', color='blue')), row=1, col=1)
 
-# 标记买卖点 (这里修复了变量作用域报错)
 buys = [t for t in t_log if t["type"] == "BUY"]
 sells = [t for t in t_log if t["type"] == "SELL"]
 if buys:
@@ -97,10 +111,10 @@ fig.add_trace(go.Scatter(x=equity_series.index, y=equity_series, name="账户权
 fig.update_layout(height=600, template="plotly_white", hovermode="x unified")
 st.plotly_chart(fig, use_container_width=True)
 
-# --- 7. 自动化寻优模块 (合并到底部) ---
+# --- 7. 自动化寻优模块 ---
 st.sidebar.markdown("---")
 if st.sidebar.button("🚀 开启全域网格寻优"):
-    st.write("### 🔍 正在计算最优参数矩阵...")
+    st.write("### 🔍 正在基于当前行情(含压测)寻优...")
     results = []
     rsi_space = range(20, 46, 5)
     gap_space = np.arange(0.03, 0.11, 0.01)
@@ -111,13 +125,11 @@ if st.sidebar.button("🚀 开启全域网格寻优"):
 
     for r in rsi_space:
         for g in gap_space:
-            # 【修复点】：这里统一调用刚才定义的 run_backtest 函数
             tr_opt, md_opt, sh_opt, _, _ = run_backtest(df, r, g, initial_bal) 
             results.append({"RSI": r, "间距%": round(g*100, 1), "收益率%": round(tr_opt, 2), "MDD%": round(md_opt, 2), "夏普": round(sh_opt, 2)})
             curr += 1
             prog.progress(curr/steps)
 
     res_df = pd.DataFrame(results)
-    best = res_df.sort_values("夏普", ascending=False).iloc[0]
-    st.success(f"✅ 寻优完成！推荐组合：RSI {best['RSI']}, 补仓间距 {best['间距%']}% (夏普: {best['夏普']})")
-    st.dataframe(res_df.sort_values("收益率%", ascending=False).head(10), use_container_width=True)
+    st.dataframe(res_df.sort_values("夏普", ascending=False).head(10), use_container_width=True)
+    
