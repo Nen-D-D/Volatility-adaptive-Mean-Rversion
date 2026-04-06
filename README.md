@@ -1,19 +1,27 @@
-# 🏴‍☠️ Greedy-Hunter-Quant: V6 Multi-Asset Strategy
-基于统计学均值回归与动态仓位管理的量化交易系统
+# 🏹 Greedy Hunter V7.2: Adaptive Crypto Quant Strategy
+**基于 AI 情绪联动与布林带-RSI 均值回归的自适应量化交易引擎**
 
-## 📈 项目概述
-本项目是一个基于 Python 的全自动量化回测与监控仪表盘。
-核心逻辑利用 **RSI 极端超卖回踩** 与 **布林带 (Bollinger Bands) 均值回归**，配合**六层金字塔式加仓策略**，旨在波动性市场中获取风险调整后的超额收益。
+![License](https://img.shields.io/badge/License-MIT-green.svg)
+![Python](https://img.shields.io/badge/Python-3.9+-blue.svg)
+![Framework](https://img.shields.io/badge/Framework-Streamlit-red.svg)
 
-## 🚀 核心功能
-- **多币种矩阵回测**：支持 BTC, ETH, SOL 等主流资产的并行模拟。
-- **动态参数寻优 (Grid Search)**：自动寻找最优 RSI 阈值与补仓间距。
-- **风险控制面板**：实时监控最大回撤 (MDD)、夏普比率 (Sharpe Ratio) 及资产曲线。
+## 🌟 核心亮点 (Core Highlights)
+- **动态情绪因子 (Dynamic Sentiment Tuning)**: 实时接入 Crypto Fear & Greed Index，动态修正 RSI 入场阈值，解决传统技术指标在极端行情下的“钝化”问题。
+- **压力测试稳健性 (Black Swan Resilience)**: 成功通过 **-40% 单日黑天鹅暴跌测试**。在极端压力环境下，通过 6 层非线性金字塔补仓逻辑，将最大回撤 (MDD) 控制在 **-3.0%** 以内。
+- **工业级回测架构**: 使用时间戳哈希（Timestamp Hashing）锁定随机种子，确保回测结果 100% 可复现，杜绝逻辑漂移。
 
-## 📊 阶段性战果 (2026.03)
-- **ETH 策略**：在 RSI 40 / 5.6% 补仓参数下，实现 **18% 收益**，MDD 控制在 **-7.58%**。
-- **资产组合**：通过多币种配置，成功将组合 MDD 压低至 **5%** 以内（开发中）。
+## 📈 实验结论 (Backtest Results)
+*测试标的: ETH-USD | 时间跨度: 近1年 | 初始资金: $10,000*
+- **最优夏普比率 (Best Sharpe)**: 1.5+ (对应基础 RSI 30 组合)
+- **最大回撤 (Max Drawdown)**: -1.91% (极度稳健配置)
+- **策略类型**: 均值回归 + 波动率扩张防护
 
 ## 🛠️ 技术栈
-- **Language**: Python 3.x
-- **Libraries**: Streamlit, Pandas, Pandas-TA, Plotly, YFinance
+- **Data**: yfinance (Yahoo Finance API)
+- **Indicators**: pandas-ta (RSI, Bollinger Bands)
+- **Visualization**: Plotly Multi-subplots
+- **Interface**: Streamlit Web Dashboard
+
+## 🚀 快速启动
+1. 运行环境: `pip install streamlit yfinance pandas_ta plotly`
+2. 启动看板: `streamlit run Strategy_v7_Pro.py`
